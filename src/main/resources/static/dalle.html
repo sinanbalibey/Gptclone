@@ -58,16 +58,20 @@
 </div>
 
 <script>
+    // Elemanları Seç
     const modelSelect = document.getElementById("modelSelect");
     const resolutionSelect = document.getElementById("resolutionSelect");
     const nValue = document.getElementById("nValue");
     const modelNote = document.getElementById("modelNote");
+    const messageList = document.getElementById("recent-message-list");
+    const responseContainer = document.getElementById("response-container");
+    const imageContainer = document.getElementById("imageContainer");
 
-    // Function to update resolution options based on selected model
+    // Model seçimine göre çözünürlük seçeneklerini güncelle
     function updateResolutionOptions() {
         const model = modelSelect.value;
-
         let resolutions = [];
+
         if (model === "dall-e-3") {
             resolutions = [
                 { value: "1024x1024", label: "1024x1024" },
@@ -76,7 +80,7 @@
             ];
             modelNote.textContent = "DALL-E 3 ile yalnızca 1 resim oluşturabilirsiniz.";
             nValue.disabled = true;
-            nValue.value = 1;  // Ensure only 1 image for DALL-E 3
+            nValue.value = 1;
         } else {
             resolutions = [
                 { value: "256x256", label: "256x256" },
@@ -87,10 +91,7 @@
             nValue.disabled = false;
         }
 
-        // Clear previous options
         resolutionSelect.innerHTML = '';
-
-        // Add new options
         resolutions.forEach(res => {
             const option = document.createElement("option");
             option.value = res.value;
@@ -99,13 +100,11 @@
         });
     }
 
-    // Update resolution options when model changes
+    // Model değişikliği olduğunda çözünürlükleri güncelle
     modelSelect.addEventListener("change", updateResolutionOptions);
-
-    // Initialize options on page load
     updateResolutionOptions();
 
-        // Mesajları yükleme fonksiyonu
+    // Mesajları Yükleme
     document.getElementById('loadMessages').addEventListener('click', async () => {
         try {
             const response = await fetch('/api/dalle/images');
@@ -116,86 +115,66 @@
         }
     });
 
-    // Mesajları sol tarafta görüntüleme
+    // Mesajları Sol Tarafta Gösterme
     function displayPrompts(data) {
-    const messageList = document.getElementById("recent-message-list");
-    messageList.innerHTML = '';
-
-    data.sort((a, b) => b.id - a.id).forEach((item) => {
-        const truncatedPrompt = item.prompt.length > 20 ? item.prompt.substring(0, 20) + '...' : item.prompt;
-
-        // Mesaj kutusu
-        const promptDiv = document.createElement('div');
-        promptDiv.className = "flex justify-between items-center mt-2 text-gray-700 hover:text-blue-700 cursor-pointer";
-
-        // Mesaj metni
-        const promptText = document.createElement('span');
-        promptText.textContent = truncatedPrompt;
-        promptText.addEventListener('click', () => showResponse(item.prompt, item.url));
-
-        // Sil butonu
-        const deleteButton = document.createElement('button');
-        deleteButton.className = "text-red-500 hover:text-red-700 ml-4";
-        deleteButton.textContent = "Sil";
-        deleteButton.addEventListener('click', (event) => {
-            event.stopPropagation();  // Tıklama etkinliğinin prompt gösterim fonksiyonuna gitmesini engeller
-            deletePrompt(item.id);
-        });
-
-        // Elemanları birleştirme
-        promptDiv.appendChild(promptText);
-        promptDiv.appendChild(deleteButton);
-        messageList.appendChild(promptDiv);
-    });
-}
-
-// Silme isteğini gerçekleştiren fonksiyon
-async function deletePrompt(id) {
-    try {
-        const response = await fetch(`/api/dalle/images/${id}`, { method: 'DELETE' });
-        if (response.ok) {
-            // Başarılı bir şekilde silindikten sonra listeyi tekrar yükleyin
-            document.getElementById('loadMessages').click();
-        } else {
-            console.error("Mesaj silinemedi:", response.statusText);
+        messageList.innerHTML = '';
+        if (!Array.isArray(data)) {
+            console.error("Yanıt beklenmedik bir formatta geldi:", data);
+            return;
         }
-    } catch (error) {
-        console.error("Silme işlemi sırasında hata oluştu:", error);
-    }
-}
+        data.sort((a, b) => b.id - a.id).forEach((item) => {
+            const truncatedPrompt = item.prompt.length > 20 ? item.prompt.substring(0, 20) + '...' : item.prompt;
+            const promptDiv = document.createElement('div');
+            promptDiv.className = "flex justify-between items-center mt-2 text-gray-700 hover:text-blue-700 cursor-pointer";
 
-    // Cevabı sağda görüntüleme
-    function showResponse(prompt, url) {
-        const responseContainer = document.getElementById('response-container');
+            const promptText = document.createElement('span');
+            promptText.textContent = truncatedPrompt;
+            promptText.addEventListener('click', () => {
+                showResponse(item.prompt, item.imageData || null);
+            });
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = "text-red-500 hover:text-red-700 ml-4";
+            deleteButton.textContent = "Sil";
+            deleteButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                deletePrompt(item.id);
+            });
+
+            promptDiv.appendChild(promptText);
+            promptDiv.appendChild(deleteButton);
+            messageList.appendChild(promptDiv);
+        });
+    }
+
+    // Yanıtı Görüntüleme
+    function showResponse(prompt, base64Image) {
+        if (!base64Image || base64Image === "undefined" || base64Image === "null") {
+            responseContainer.innerHTML = `<div class="text-red-500 font-semibold">Görüntü yüklenemedi.</div>`;
+            return;
+        }
         responseContainer.innerHTML = `
             <div class="text-lg font-semibold">You asked: "${prompt}"</div>
             <div class="mt-2">GPT gave this response:</div>
-            <img src="${url}" alt="Generated Image" class="mt-4 rounded shadow-lg max-w-full h-auto">
+            <img src="data:image/png;base64,${base64Image}" alt="Generated Image" class="mt-4 rounded shadow-lg max-w-full h-auto">
         `;
     }
-    // Form gönderme işlemi için event listener
+
+    // Resim Oluşturma Formu Gönderme
     document.getElementById('generateButton').addEventListener('click', async () => {
         const model = modelSelect.value;
         const prompt = document.getElementById("imagePrompt").value;
         const size = resolutionSelect.value;
         const n = parseInt(nValue.value, 10);
 
-        const imageRequest = {
-            model: model,
-            prompt: prompt,
-            size: size,
-            n: n
-        };
+        const imageRequest = { model, prompt, size, n };
 
         try {
             const response = await fetch('/api/dalle/generate-image', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(imageRequest)
             });
-
             const images = await response.json();
             displayGeneratedImages(images);
         } catch (error) {
@@ -203,19 +182,32 @@ async function deletePrompt(id) {
         }
     });
 
-    // Display generated images
+    // Oluşturulan Resimleri Gösterme
     function displayGeneratedImages(images) {
-        const imageContainer = document.getElementById("imageContainer");
         imageContainer.innerHTML = '';
-
         images.forEach(image => {
             const imageElement = document.createElement('img');
-            imageElement.src = image.url;
+            imageElement.src = `data:image/png;base64,${image.imageData}`;
             imageElement.alt = 'Generated Image';
             imageElement.className = 'mt-4 rounded shadow-lg max-w-full h-auto';
             imageContainer.appendChild(imageElement);
         });
     }
+
+    // Silme Fonksiyonu
+    async function deletePrompt(id) {
+        try {
+            const response = await fetch(`/api/dalle/images/${id}`, { method: 'DELETE' });
+            if (response.ok) {
+                document.getElementById('loadMessages').click();
+            } else {
+                console.error("Mesaj silinemedi:", response.statusText);
+            }
+        } catch (error) {
+            console.error("Silme işlemi sırasında hata oluştu:", error);
+        }
+    }
+
 
 </script>
 </body>

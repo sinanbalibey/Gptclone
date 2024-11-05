@@ -4,21 +4,21 @@ package com.openaiproject.OpenAiProject.service;
 import com.openaiproject.OpenAiProject.Entities.ImageGeneration;
 import com.openaiproject.OpenAiProject.Repos.ImageGenerationRepository;
 import com.openaiproject.OpenAiProject.Response.ImageGenerationResponse;
-import org.springframework.ai.image.ImageClient;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.HttpEntity;
+
+
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 
+
+import java.io.InputStream;
+import java.net.URL;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,18 +30,15 @@ public class ImageGenerationService {
     private final ImageGenerationRepository imageGenerationRepository;
     private final RestTemplate restTemplate;
 
-    private final String apiUrl= "https://api.openai.com/v1/images/generations";
+    private final String apiUrl = "https://api.openai.com/v1/images/generations";
 
-    @Value("${openai.api.key}")
+    @Value("${spring.ai.openai.api-key}")
     private String apiKey;
-
-
 
     public ImageGenerationService(ImageGenerationRepository imageGenerationRepository) {
         this.imageGenerationRepository = imageGenerationRepository;
         this.restTemplate = new RestTemplate();
     }
-
 
     // 1. API Sorgusu Atma (Image generation)
     public List<ImageGeneration> generateImage(String model, String prompt, int n, String size) {
@@ -77,6 +74,15 @@ public class ImageGenerationService {
                     imageGeneration.setCreated(Instant.ofEpochSecond(apiResponse.getCreated()));
                     imageGeneration.setRevisedPrompt(imageData.getRevisedPrompt() != null ? imageData.getRevisedPrompt() : "Default revised prompt");
                     imageGeneration.setUrl(imageData.getUrl());
+
+                    // Resmi indirip byte array olarak kaydedin
+                    try {
+                        byte[] imageBytes = downloadImageBytes(imageData.getUrl());
+                        imageGeneration.setImageData(imageBytes);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
                     imageGenerationRepository.save(imageGeneration);
                     generatedImages.add(imageGeneration);
                 }
@@ -86,9 +92,12 @@ public class ImageGenerationService {
         return generatedImages;
     }
 
-
-
-
+    // Görüntüyü URL üzerinden indirip byte array'e dönüştüren metod
+    private byte[] downloadImageBytes(String imageUrl) throws Exception {
+        try (InputStream in = new URL(imageUrl).openStream()) {
+            return in.readAllBytes();
+        }
+    }
 
     // 2. Tüm Soruları Getirme
     public List<ImageGeneration> getAllQuestions() {

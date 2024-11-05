@@ -34,10 +34,14 @@ public class ImageGeneration {
     @Column(nullable = false, length = 1024)
     private String url;
 
+    @Lob
+    @Column(columnDefinition = "MEDIUMBLOB")
+    private byte[] imageData;
+
     // Constructors, getters, and setters
     public ImageGeneration() {}
 
-    public ImageGeneration(String model, String prompt, int n, String size, Instant created, String revisedPrompt, String url) {
+    public ImageGeneration(String model, String prompt, int n, String size, Instant created, String revisedPrompt, String url,byte[] imageData) {
         this.model = model;
         this.prompt = prompt;
         this.n = n;
@@ -45,6 +49,15 @@ public class ImageGeneration {
         this.created = created;
         this.revisedPrompt = revisedPrompt;
         this.url = url;
+        this.imageData=imageData;
+    }
+
+    public byte[] getImageData() {
+        return imageData;
+    }
+
+    public void setImageData(byte[] imageData) {
+        this.imageData = imageData;
     }
 
     public Long getId() {
