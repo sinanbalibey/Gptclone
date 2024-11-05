@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPT Dall-E Clone</title>
+    <script src="https://unpkg.com/htmx.org@1.9.12" crossorigin="anonymous"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-screen bg-gray-100">
+<div class="flex h-full">
+    <!-- Sol Bölüm: Önceki Mesajlar -->
+    <section class="w-64 bg-gray-200 p-4">
+        <button id="loadMessages" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Önceki Mesajları Yükle</button>
+        <div id="recent-message-list" class="font-bold text-lg mt-4">Recent Prompts</div>
+    </section>
+
+    <!-- Ana Chat Alanı -->
+    <main class="flex flex-col bg-white p-4 w-full max-w-full">
+        <div id="response-container" class="flex-1 mb-4 p-4 h-full overflow-auto"></div>
+
+        <!-- DALL-E Image Generation Form -->
+        <div class="mt-4">
+            <form id="imageForm">
+                <input id="imagePrompt" name="prompt" class="bg-gray-200 outline-none text-gray-700 rounded-full py-2 px-4 w-full" type="text" placeholder="Resim için bir tanım girin" required>
+
+                <button type="button" id="generateButton" class="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Resim Oluştur
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+                    </svg>
+                </button>
+            </form>
+            <div id="imageContainer" class="mt-4"></div>
+        </div>
+    </main>
+
+    <!-- Model and Number of Images -->
+    <section class="w-64 bg-gray-200 p-4">
+        <div class="font-bold text-lg">Model Seçimi</div>
+        <select id="modelSelect" name="modelName" class="w-full p-2 border mt-4 rounded">
+            <option value="dall-e-3">DALL-E-3</option>
+            <option value="dall-e-2">DALL-E-2</option>
+        </select>
+        <br><br>
+        <div class="font-bold text-lg">Çözünürlük Ayarla</div>
+        <select id="resolutionSelect" name="resolution" class="w-full p-2 border mt-4 rounded">
+            <!-- Resolutions will be dynamically updated based on model selection -->
+        </select>
+        <small id="resolutionSelectNote" class="text-gray-500">Oluşturulan görüntülerin boyutu. dall-e-2 için 256x256, 512x512 veya 1024x1024 boyutlarından biri olmalıdır. Dall-e-3 modelleri için 1024x1024, 1792x1024 veya 1024x1792 boyutlarından biri olmalıdır. </small>
+        <br><br>
+        <div class="mt-4">
+            <label for="nValue" class="font-bold">Resim Sayısı (n):</label>
+            <input id="nValue" name="n" type="number" min="1" max="10" value="1" class="bg-gray-200 border border-gray-300 rounded px-3 py-2 w-full mt-1" required>
+            <small id="modelNote" class="text-gray-500">DALL-E 3 ile yalnızca 1 resim oluşturabilirsiniz.</small>
+        </div>
+    </section>
+</div>
+
+<script>
+    const modelSelect = document.getElementById("modelSelect");
+    const resolutionSelect = document.getElementById("resolutionSelect");
+    const nValue = document.getElementById("nValue");
+    const modelNote = document.getElementById("modelNote");
+
+    // Function to update resolution options based on selected model
+    function updateResolutionOptions() {
+        const model = modelSelect.value;
+
+        let resolutions = [];
+        if (model === "dall-e-3") {
+            resolutions = [
+                { value: "1024x1024", label: "1024x1024" },
+                { value: "1024x1792", label: "1024x1792" },
+                { value: "1792x1024", label: "1792x1024" }
+            ];
+            modelNote.textContent = "DALL-E 3 ile yalnızca 1 resim oluşturabilirsiniz.";
+            nValue.disabled = true;
+            nValue.value = 1;  // Ensure only 1 image for DALL-E 3
+        } else {
+            resolutions = [
+                { value: "256x256", label: "256x256" },
+                { value: "512x512", label: "512x512" },
+                { value: "1024x1024", label: "1024x1024" }
+            ];
+            modelNote.textContent = "DALL-E 2 ile aynı anda 10 adede kadar resim oluşturabilirsiniz.";
+            nValue.disabled = false;
+        }
+
+        // Clear previous options
+        resolutionSelect.innerHTML = '';
+
+        // Add new options
+        resolutions.forEach(res => {
+            const option = document.createElement("option");
+            option.value = res.value;
+            option.textContent = res.label;
+            resolutionSelect.appendChild(option);
+        });
+    }
+
+    // Update resolution options when model changes
+    modelSelect.addEventListener("change", updateResolutionOptions);
+
+    // Initialize options on page load
+    updateResolutionOptions();
+
+        // Mesajları yükleme fonksiyonu
+    document.getElementById('loadMessages').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/api/dalle/images');
+            const data = await response.json();
+            displayPrompts(data);
+        } catch (error) {
+            console.error("Mesajlar yüklenemedi", error);
+        }
+    });
+
+    // Mesajları sol tarafta görüntüleme
+    function displayPrompts(data) {
+    const messageList = document.getElementById("recent-message-list");
+    messageList.innerHTML = '';
+
+    data.sort((a, b) => b.id - a.id).forEach((item) => {
+        const truncatedPrompt = item.prompt.length > 20 ? item.prompt.substring(0, 20) + '...' : item.prompt;
+
+        // Mesaj kutusu
+        const promptDiv = document.createElement('div');
+        promptDiv.className = "flex justify-between items-center mt-2 text-gray-700 hover:text-blue-700 cursor-pointer";
+
+        // Mesaj metni
+        const promptText = document.createElement('span');
+        promptText.textContent = truncatedPrompt;
+        promptText.addEventListener('click', () => showResponse(item.prompt, item.url));
+
+        // Sil butonu
+        const deleteButton = document.createElement('button');
+        deleteButton.className = "text-red-500 hover:text-red-700 ml-4";
+        deleteButton.textContent = "Sil";
+        deleteButton.addEventListener('click', (event) => {
+            event.stopPropagation();  // Tıklama etkinliğinin prompt gösterim fonksiyonuna gitmesini engeller
+            deletePrompt(item.id);
+        });
+
+        // Elemanları birleştirme
+        promptDiv.appendChild(promptText);
+        promptDiv.appendChild(deleteButton);
+        messageList.appendChild(promptDiv);
+    });
+}
+
+// Silme isteğini gerçekleştiren fonksiyon
+async function deletePrompt(id) {
+    try {
+        const response = await fetch(`/api/dalle/images/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            // Başarılı bir şekilde silindikten sonra listeyi tekrar yükleyin
+            document.getElementById('loadMessages').click();
+        } else {
+            console.error("Mesaj silinemedi:", response.statusText);
+        }
+    } catch (error) {
+        console.error("Silme işlemi sırasında hata oluştu:", error);
+    }
+}
+
+    // Cevabı sağda görüntüleme
+    function showResponse(prompt, url) {
+        const responseContainer = document.getElementById('response-container');
+        responseContainer.innerHTML = `
+            <div class="text-lg font-semibold">You asked: "${prompt}"</div>
+            <div class="mt-2">GPT gave this response:</div>
+            <img src="${url}" alt="Generated Image" class="mt-4 rounded shadow-lg max-w-full h-auto">
+        `;
+    }
+    // Form gönderme işlemi için event listener
+    document.getElementById('generateButton').addEventListener('click', async () => {
+        const model = modelSelect.value;
+        const prompt = document.getElementById("imagePrompt").value;
+        const size = resolutionSelect.value;
+        const n = parseInt(nValue.value, 10);
+
+        const imageRequest = {
+            model: model,
+            prompt: prompt,
+            size: size,
+            n: n
+        };
+
+        try {
+            const response = await fetch('/api/dalle/generate-image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(imageRequest)
+            });
+
+            const images = await response.json();
+            displayGeneratedImages(images);
+        } catch (error) {
+            console.error("Resim oluşturulurken hata oluştu", error);
+        }
+    });
+
+    // Display generated images
+    function displayGeneratedImages(images) {
+        const imageContainer = document.getElementById("imageContainer");
+        imageContainer.innerHTML = '';
+
+        images.forEach(image => {
+            const imageElement = document.createElement('img');
+            imageElement.src = image.url;
+            imageElement.alt = 'Generated Image';
+            imageElement.className = 'mt-4 rounded shadow-lg max-w-full h-auto';
+            imageContainer.appendChild(imageElement);
+        });
+    }
+
+</script>
+</body>
+</html>
