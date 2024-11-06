@@ -35,6 +35,7 @@ public class ImageGenerationService {
     @Value("${spring.ai.openai.api-key}")
     private String apiKey;
 
+
     public ImageGenerationService(ImageGenerationRepository imageGenerationRepository) {
         this.imageGenerationRepository = imageGenerationRepository;
         this.restTemplate = new RestTemplate();
