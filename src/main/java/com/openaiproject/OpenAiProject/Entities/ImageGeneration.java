@@ -16,7 +16,7 @@ public class ImageGeneration {
     @Column(nullable = false)
     private String model;
 
-    @Column(nullable = false)
+    @Column(nullable = false,length = 1024)
     private String prompt;
 
     @Column(nullable = false)

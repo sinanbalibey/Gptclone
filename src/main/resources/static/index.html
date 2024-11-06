@@ -3,15 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatGPT Clone</title>
+    <title>GPT Clone</title>
     <script src="https://unpkg.com/htmx.org@1.9.12" crossorigin="anonymous"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        pre {
+        background-color: #000000; /* Hafif gri arka plan */
+        padding: 10px;
+        border-radius: 5px;
+        overflow-x: auto;
+        margin-top: 10px;
+        }
+
+        code {
+        font-family: monospace;
+        color: #ffffff; /* Kod metnini renklendirme */
+        }
+    </style>
 </head>
 <body class="h-screen bg-gray-100">
 <div class="flex h-full">
     <!-- Left Section: Recent Messages -->
     <section class="w-64 bg-gray-200 p-4">
-        <button id="loadMessages" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Load Previous Messages</button>
+        <button  class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"><a href="index.html">Sayfayı Yeniden Yükle</a></button>
+        <br><br>
+        <button id="loadMessages" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Önceki Mesajları Yükle</button>
         <div id="recent-message-list" class="font-bold text-lg mt-4">Recent</div>
     </section>
 
@@ -19,10 +35,10 @@
     <main class="flex flex-col bg-white p-4 w-full max-w-full">
         <div id="response-container" class="flex-1 mb-4 p-4 h-full overflow-auto"></div>
         <div>
-            <form id="chatForm" hx-post="/api/chat" hx-swap="beforeend" hx-target="#response-container" hx-include="#modelSelect">
+            <form id="chatForm">
                 <div class="flex items-center bg-gray-200 rounded-full p-2 shadow-md mt-2">
-                    <input id="message" name="message" class="bg-gray-200 outline-none text-gray-700 rounded-full py-2 px-4 w-full" type="text" placeholder="Message ChatGPT Clone">
-                    <button type="submit" class="bg-gray-300 hover:bg-gray-400 text-gray-600 rounded-full p-2 ml-2">
+                    <input id="message" name="message" class="bg-gray-200 outline-none text-gray-700 rounded-full py-2 px-4 w-full" type="text" placeholder="ChatGPT Uygulamasına ileti gönder">
+                    <button type="button" id="generateButton" class="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
                         </svg>
@@ -30,154 +46,213 @@
                 </div>
             </form>
         </div>
-
-
-
     </main>
-    <section class="w-64 bg-gray-150 p-4">
-        <button>
-            <a href="dalle.html" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" target="_blank">Dall-E  </a>
-        </button>
 
-    </section>
 
     <!-- Right Section: Model Selection -->
     <section class="w-64 bg-gray-200 p-4">
-        <div class="font-bold text-lg">Model Selection</div>
+        <div class="font-bold text-lg">Model Seçimi</div>
         <select id="modelSelect" name="modelName" class="w-full p-2 border mt-4 rounded">
-            <option value="gpt-4o">GPT-4o</option>
-            <option value="gpt-4o-2024-08-06">GPT-4o-2024-08-06</option>
-            <option value="gpt-4o-2024-05-13">GPT-4o-2024-05-13</option>
+            <option value="gpt-3.5-turbo">GPT-3.5-Turbo</option>
+            <option value="gpt-4">GPT-4</option>
+            <option value="gpt-4-0125-preview">GPT-4-0125-Preview</option>
+            <option value="gpt-4-turbo">GPT-4-Turbo</option>
+            <option value="gpt-4-turbo-2024-04-09">GPT-4-Turbo-2024-04-09</option>
+            <option value="gpt-4o">GPT-4-o</option>
+            <option value="gpt-4o-mini">GPT-4-o-Mini</option>
+            <option value="gpt-4o-mini-2024-07-18">GPT-4-o-Mini-2024-07-18</option>
             <option value="chatgpt-4o-latest">ChatGpt-4o-Latest</option>
+            <option value="gpt-4o-2024-05-13">GPT-4o-2024-05-13</option>
+            <option value="gpt-4o-2024-08-06">GPT-4o-2024-08-06</option>
+
         </select>
+
+        <br>
+
+        <div class="font-bold text-lg">Role Seçimi</div>
+        <select id="roleSelect" name="roleName" class="w-full p-2 border mt-4 rounded">
+            <option value="user">User</option>
+            <option value="assistant">Asistan</option>
+            <option value="system">System</option>
+        </select>
+
+        <br>
+
+        <div class="font-bold text-lg">Temperature</div>
+        <input type="range" id="tempSlider" name="tempSlider" min="0" max="2" step="0.1" value="1" class="w-full p-2 border mt-4 rounded" />
+        <p id="tempValue" class="mt-2">Current Value: <span id="selectedValue">1</span></p>
+        <small id="temperatureNote" class="text-gray-500">GPT modelleri alanında, "sıcaklık" ısıyı değil, modelin çıktısındaki rastgelelik derecesini ifade eder.</small>
+        <br>
+
+        <div class="font-bold text-lg">Top_p</div>
+        <input type="range" id="toppSlider" name="toppSlider" min="0" max="1" step="0.01" value="1" class="w-full p-2 border mt-4 rounded" />
+        <p id="toppValue" class="mt-2">Current Value: <span id="selectedToppValue">1</span></p>
+        <small id="topPNote" class="text-gray-500">Çekirdek örnekleme olarak da bilinen top_p örnekleme, en olası belirteçleri seçmeyi içeren geleneksel örnekleme yöntemlerine bir alternatiftir.</small>
+        <br>
+
+        <div class="font-bold text-lg">Max Tokens</div>
+        <input type="range" id="tokensSlider" name="tokensSlider" min="1" max="4000" step="1" value="1000" class="w-full p-2 border mt-4 rounded" />
+        <p id="tokensValue" class="mt-2">Current Value: <span id="selectedTokensValue">1000</span> tokens</p>
+        <small id="tokensNote" class="text-gray-500">Maksimum belirteç sayısı, üretilen çıktının uzunluğunu sınırlayan bir değerdir.</small>
+        <br>
+
+        <div class="mt-4">
+            <button>
+                <a href="dalle.html" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" target="_blank">Dall-E  </a>
+            </button>
+        </div>
+
+
+
     </section>
 </div>
 
 <script>
-    // Load messages
-    document.getElementById('loadMessages').addEventListener('click', function() {
-        fetch('/api/messages')
-            .then(response => response.json())
-            .then(messages => {
-                const messageList = document.getElementById('recent-message-list');
-                messageList.innerHTML = ''; // Clear previous messages
-                messages.forEach(function(message) {
-                    const messageElement = document.createElement('div');
-                    messageElement.classList.add('text-sm', 'cursor-pointer');
-                    messageElement.textContent = `User: ${message.message}`;
-                    messageElement.addEventListener('click', function() {
-                        showResponse(message.id); // Show response on click
+    document.addEventListener('DOMContentLoaded', () => {
+        // Load messages on button click
+        document.getElementById('loadMessages').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/gpt/texts');
+                if (response.ok) {
+                    const messages = await response.json();
+                    const messageList = document.getElementById('recent-message-list');
+                    messageList.innerHTML = ''; // Clear previous messages
+
+                    // Display each message as a truncated item with a delete button
+                    messages.forEach(msg => {
+                        const messageItem = document.createElement('div');
+                        messageItem.classList.add('flex', 'justify-between', 'items-center', 'text-gray-800', 'cursor-pointer', 'mb-2');
+
+                        // Truncate message to 20 characters
+                        const truncatedText = msg.prompt.length > 20 ? msg.prompt.substring(0, 20) + '...' : msg.prompt;
+                        const messageText = document.createElement('span');
+                        messageText.textContent = truncatedText;
+                        messageText.onclick = () => loadMessageById(msg.id);
+
+                        // Delete button
+                        const deleteButton = document.createElement('button');
+                        deleteButton.textContent = 'Sil';
+                        deleteButton.classList.add('text-red-500', 'hover:text-red-700', 'ml-2');
+                        deleteButton.onclick = (event) => {
+                            event.stopPropagation();
+                            deleteMessageById(msg.id, messageItem);
+                        };
+
+                        // Append text and delete button to the message item
+                        messageItem.appendChild(messageText);
+                        messageItem.appendChild(deleteButton);
+                        messageList.appendChild(messageItem);
                     });
-                    messageList.appendChild(messageElement);
-
-                    // Add delete button
-                    const deleteButton = document.createElement('button');
-                    deleteButton.textContent = "Delete";
-                    deleteButton.classList.add('ml-2', 'bg-red-500', 'text-white', 'px-2', 'py-1', 'rounded');
-                    deleteButton.addEventListener('click', function(event) {
-                        event.stopPropagation(); // Prevent showing response
-                        deleteMessage(message.id);
-                    });
-                    messageElement.appendChild(deleteButton);
-                });
-            })
-            .catch(error => console.error('Error fetching messages:', error));
-    });
-
-    document.getElementById('imageForm').addEventListener('submit', function(event) {
-        event.preventDefault(); // Formun varsayılan gönderimini engelle
-
-        const prompt = document.getElementById('imagePrompt').value;
-        const imageContainer = document.getElementById('imageContainer');
-
-        // Yükleniyor mesajını göster
-        const loadingMessage = document.createElement('div');
-        loadingMessage.textContent = 'Görsel oluşturuluyor...';
-        imageContainer.innerHTML = ''; // Önceki içeriği temizle
-        imageContainer.appendChild(loadingMessage);
-
-        fetch('/api/generate-image', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json' // İçerik türünü JSON olarak ayarla
-            },
-            body: JSON.stringify({ prompt: prompt }) // JSON formatında veri gönder
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
+                }
+            } catch (error) {
+                console.error("Error loading messages:", error);
             }
-            return response.json();
-        })
-        .then(data => {
-            // Yükleniyor mesajını kaldır
-            loadingMessage.remove();
-            // Görsel bağlantısını oluştur
-            const link = document.createElement('a');
-            link.href = data.url; // Resim URL'si
-            link.target = '_blank'; // Yeni sekmede açılacak
-            link.textContent = 'Oluşturulan Görseli Görüntüle'; // Bağlantı metni
-            link.classList.add('block', 'mt-2', 'text-blue-500', 'underline'); // Bağlantıya stil ekle
-
-            const img = document.createElement('img');
-            img.src = data.url;
-            img.alt = 'Generated Image';
-            img.classList.add('mt-2'); // Görselin altında biraz boşluk bırak
-
-            // Bağlantıyı ve resmi görüntüle
-            imageContainer.appendChild(link);
-            imageContainer.appendChild(img);
-        })
-        .catch(error => {
-            loadingMessage.textContent = 'Biraz Bekleyin : ' + error.message;
         });
-    });
 
-    // Show response
-    function showResponse(messageId) {
-        fetch(`/api/message/${messageId}`)
-            .then(response => response.json())
-            .then(data => {
-                const responseContainer = document.getElementById('response-container');
-                responseContainer.innerHTML = ''; // Clear previous response
-                const responseElement = document.createElement('div');
-                responseElement.classList.add('mt-4', 'p-2', 'bg-gray-100', 'rounded');
-                responseElement.textContent = `GPT: ${data.response}`;
-                responseContainer.appendChild(responseElement);
+        // Function to load individual message by ID and display it
+        async function loadMessageById(id) {
+            try {
+                const response = await fetch(`/api/gpt/texts/${id}`);
+                if (response.ok) {
+                    const generatedText = await response.json();
+
+                    // Format the response text for display (handle code blocks)
+                    let formattedResponse = generatedText.response
+                        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>') // Format code blocks
+                        .replace(/\n/g, '<br>'); // Convert line breaks
+
+                    // Display the prompt and formatted response
+                    document.getElementById('response-container').innerHTML = `
+                        <strong>Prompt:</strong> ${generatedText.prompt}<br><br>
+                        <strong>Response:</strong><br> ${formattedResponse}
+                    `;
+
+                    // Clear the prompt input field
+                    document.getElementById('message').value = '';
+                }
+            } catch (error) {
+                console.error("Error loading message by ID:", error);
+            }
+        }
+
+        // Function to delete a message by ID
+        async function deleteMessageById(id, messageItem) {
+            try {
+                const response = await fetch(`/api/gpt/texts/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    messageItem.remove(); // Remove the message item from the DOM
+                } else {
+                    console.error("Error deleting message:", response.statusText);
+                }
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        }
+
+        // Handle the form submission for generating text
+        document.getElementById('generateButton').addEventListener('click', async () => {
+            const model = document.getElementById('modelSelect').value;
+            const role = document.getElementById('roleSelect').value;
+            const temperature = parseFloat(document.getElementById('tempSlider').value);
+            const topP = parseFloat(document.getElementById('toppSlider').value);
+            const maxTokens = parseInt(document.getElementById('tokensSlider').value);
+            const prompt = document.getElementById('message').value;
+
+            const requestBody = {
+                model: model,
+                role: role,
+                temperature: temperature,
+                topP: topP,
+                maxTokens: maxTokens,
+                prompt: prompt
+            };
+
+            try {
+                const response = await fetch('/api/gpt/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (response.ok) {
+                    const generatedText = await response.json();
+
+                    // Format the response text for display (handle code blocks)
+                    let formattedResponse = generatedText.response
+                        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>') // Format code blocks
+                        .replace(/\n/g, '<br>'); // Convert line breaks
+
+                    // Display the prompt and formatted response
+                    document.getElementById('response-container').innerHTML = `
+                        <strong>Prompt:</strong> ${generatedText.prompt}<br><br>
+                        <strong>Response:</strong><br> ${formattedResponse}
+                    `;
+
+                    // Clear the prompt input field
+                    document.getElementById('message').value = '';
+                } else {
+                    console.error("Error generating text:", response.statusText);
+                }
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        });
+
+        // Update selected values of sliders dynamically
+        const sliders = [
+            { sliderId: 'toppSlider', valueId: 'selectedToppValue' },
+            { sliderId: 'tempSlider', valueId: 'selectedValue' },
+            { sliderId: 'tokensSlider', valueId: 'selectedTokensValue' }
+        ];
+
+        sliders.forEach(({ sliderId, valueId }) => {
+            const slider = document.getElementById(sliderId);
+            const selectedValueDisplay = document.getElementById(valueId);
+
+            slider.addEventListener('input', function () {
+                selectedValueDisplay.textContent = slider.value;
             });
-    }
-
-    // Delete message
-    function deleteMessage(messageId) {
-        fetch(`/api/message/${messageId}`, {
-            method: 'DELETE'
-        })
-        .then(() => {
-            document.getElementById('loadMessages').click(); // Reload messages
-        })
-        .catch(error => console.error('Error deleting message:', error));
-    }
-
-    // Change model and notify server
-    document.getElementById('modelSelect').addEventListener('change', function() {
-        const selectedModel = this.value;
-        const imageForm = document.getElementById('imageForm');
-        const imagePromptInput = document.getElementById('imagePrompt');
-        const generateButton = imageForm.querySelector('button[type="submit"]');
-
-        // Enable or disable DALL-E form based on the selected model
-        if (selectedModel === "dall-e-3") {
-            imagePromptInput.disabled = false;
-            generateButton.disabled = false;
-        }
-        if(selectedModel === "dall-e-2") {
-            imagePromptInput.disabled = false;
-            generateButton.disabled = false;
-        }
-        else {
-            imagePromptInput.disabled = true;
-            generateButton.disabled = true;
-        }
+        });
     });
 </script>
 </body>

@@ -3,14 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPT Dall-E Clone</title>
+    <title>Dall-E Clone</title>
     <script src="https://unpkg.com/htmx.org@1.9.12" crossorigin="anonymous"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="h-screen bg-gray-100">
+
 <div class="flex h-full">
     <!-- Sol Bölüm: Önceki Mesajlar -->
     <section class="w-64 bg-gray-200 p-4">
+        <button  class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"><a href="dalle.html">Sayfayı Yeniden Yükle</a></button>
+        <br><br>
         <button id="loadMessages" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Önceki Mesajları Yükle</button>
         <div id="recent-message-list" class="font-bold text-lg mt-4">Recent Prompts</div>
     </section>
@@ -30,6 +33,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
                     </svg>
                 </button>
+
             </form>
             <div id="imageContainer" class="mt-4"></div>
         </div>
@@ -53,6 +57,9 @@
             <label for="nValue" class="font-bold">Resim Sayısı (n):</label>
             <input id="nValue" name="n" type="number" min="1" max="10" value="1" class="bg-gray-200 border border-gray-300 rounded px-3 py-2 w-full mt-1" required>
             <small id="modelNote" class="text-gray-500">DALL-E 3 ile yalnızca 1 resim oluşturabilirsiniz.</small>
+        </div>
+        <div class="mt-4">
+            <a href="index.html" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" target="_blank">Gpt  </a>
         </div>
     </section>
 </div>
@@ -162,24 +169,36 @@
 
     // Resim Oluşturma Formu Gönderme
     document.getElementById('generateButton').addEventListener('click', async () => {
-        const model = modelSelect.value;
-        const prompt = document.getElementById("imagePrompt").value;
-        const size = resolutionSelect.value;
-        const n = parseInt(nValue.value, 10);
+    const model = modelSelect.value;
+    const prompt = document.getElementById("imagePrompt").value;
+    const size = resolutionSelect.value;
+    const n = parseInt(nValue.value, 10);
 
-        const imageRequest = { model, prompt, size, n };
+    const imageRequest = { model, prompt, size, n };
 
-        try {
-            const response = await fetch('/api/dalle/generate-image', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(imageRequest)
-            });
-            const images = await response.json();
-            displayGeneratedImages(images);
-        } catch (error) {
-            console.error("Resim oluşturulurken hata oluştu", error);
+    try {
+        // Input alanını temizlemeden önce validasyon yapalım
+        if (!prompt) {
+            alert("Lütfen bir prompt girin!");
+            return;
         }
+
+        // Formu gönder ve sonucu al
+        const response = await fetch('/api/dalle/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(imageRequest)
+        });
+        const images = await response.json();
+
+        // Oluşturulan görüntüleri ekranda göster
+        displayGeneratedImages(images);
+
+        // Görüntü oluşturulduktan sonra input kısmını temizle
+        document.getElementById("imagePrompt").value = '';
+    } catch (error) {
+        console.error("Resim oluşturulurken hata oluştu", error);
+    }
     });
 
     // Oluşturulan Resimleri Gösterme
